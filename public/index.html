@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#17263c"><title>SubnetLab — Network planning</title>
+  <link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/overrides.css">
+</head>
+<body>
+  <div id="authView" class="auth-shell" hidden>
+    <button class="button theme-toggle" type="button" data-action="toggle-theme" aria-label="Switch to dark mode">Dark mode</button>
+    <section class="auth-card">
+      <a class="brand auth-brand" href="#"><span class="brand-mark">S</span><span>Subnet<span class="brand-light">Lab</span></span></a>
+<h1 id="authTitle">Sign in to your workspace</h1>
+      <p class="muted">Plan address space, track assignments, and build your subnetting skills.</p>
+      <form id="authForm" class="stack-form">
+        <label>Email address<input name="email" type="email" autocomplete="email" required></label>
+        <label>Password<input name="password" type="password" minlength="10" autocomplete="current-password" required></label>
+        <button class="button primary full" id="authSubmit">Sign in</button>
+      </form>
+      <p class="auth-switch"><span id="authSwitchText">New to SubnetLab?</span> <button class="text-button" id="authSwitch" type="button">Create account</button></p>
+      <p class="auth-message" id="authMessage" role="status"></p>
+    </section>
+  </div>
+  <div id="appView" class="app-shell" hidden>
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="#dashboard"><span class="brand-mark">S</span><span>Subnet<span class="brand-light">Lab</span></span></a>
+      <div class="side-label">WORKSPACE</div>
+      <nav class="nav-list" aria-label="Main navigation">
+        <a href="#dashboard" data-page="dashboard"><span class="nav-icon">▦</span>Overview</a>
+        <a href="#planner" data-page="planner"><span class="nav-icon">⌗</span>Subnet planner</a>
+        <a href="#ipam" data-page="ipam"><span class="nav-icon">◉</span>IP address manager</a>
+        <a href="#practice" data-page="practice"><span class="nav-icon">▤</span>Practice lab</a>
+        <a href="#analytics" data-page="analytics"><span class="nav-icon">⌁</span>Progress</a>
+      </nav>
+      <div class="sidebar-bottom"><div class="user-mini"><div class="avatar" id="avatar">U</div><div class="user-copy"><strong id="userEmail">Account</strong><span>Personal workspace</span></div><button class="icon-button logout" id="logout" aria-label="Sign out" title="Sign out">↪</button></div></div>
+    </aside>
+    <main class="main-area">
+      <header class="topbar"><button id="menuToggle" class="icon-button menu-toggle" aria-label="Open navigation">☰</button><div class="breadcrumbs"><span>SubnetLab</span><span class="crumb-divider">/</span><strong id="pageName">Overview</strong></div><div class="top-actions"><span class="live-dot"></span><span>Workspace ready</span><button class="button theme-toggle" type="button" data-action="toggle-theme" aria-label="Switch to dark mode">Dark mode</button></div></header>
+      <div id="notice" class="notice" role="status" aria-live="polite"></div>
+      <div id="pageContent" class="content"></div>
+    </main>
+  </div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

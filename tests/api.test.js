@@ -1,0 +1,39 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import request from 'supertest';
+
+process.env.JWT_SECRET ||= 'test-secret-long-enough-for-subnetlab-123456';
+process.env.APP_ORIGIN ||= 'http://127.0.0.1:3000';
+process.env.DB_PATH = ':memory:';
+const { app } = await import('../src/server/index.js');
+const { db } = await import('../src/server/db.js');
+
+test('accounts isolate plans and IPAM; practice answers are checked and saved server-side',async()=>{
+  const a=request.agent(app),b=request.agent(app),origin=process.env.APP_ORIGIN;
+  assert.equal((await request(app).get('/')).status,200);
+  assert.equal((await request(app).get('/app.js')).status,200);
+  const registerA=await a.post('/api/v1/auth/register').set('Origin',origin).send({email:'a@example.test',password:'strong-password-1'});assert.equal(registerA.status,201);
+  const registerB=await b.post('/api/v1/auth/register').set('Origin',origin).send({email:'b@example.test',password:'strong-password-2'});assert.equal(registerB.status,201);
+  assert.equal((await a.post('/api/v1/auth/login').set('Origin',origin).send({email:'a@example.test',password:'strong-password-1'})).status,200);
+  assert.equal((await b.post('/api/v1/auth/login').set('Origin',origin).send({email:'b@example.test',password:'strong-password-2'})).status,200);
+  const plan=await a.post('/api/v1/plans').set('Origin',origin).send({name:'Office',family:4,base:'10.20.0.0/24',requirements:[{name:'Staff',hosts:30}]});assert.equal(plan.status,201);
+  const ipv6Plan=await a.post('/api/v1/plans').set('Origin',origin).send({name:'IPv6 office',family:6,base:'2001:db8:1200::/48',subnetPrefix:64,names:['Staff']});assert.equal(ipv6Plan.status,201);
+  const ipv6Config=await a.get(`/api/v1/plans/${ipv6Plan.body.data.id}/config`);assert.equal(ipv6Config.status,200);assert.match(ipv6Config.body.data.text,/ipv6 address 2001:db8:1200::\/64/);assert.match(ipv6Config.body.data.platform,/IPv4 DHCP pools are omitted/);
+  assert.equal((await a.post('/api/v1/plans/compute').set('Origin',origin).send({family:5,base:'10.0.0.0/24'})).status,400);
+  assert.equal((await b.get(`/api/v1/plans/${plan.body.data.id}`)).status,404);
+  const assignment=await a.post('/api/v1/ipam/records').set('Origin',origin).send({planId:plan.body.data.id,allocationIndex:0,address:'10.20.0.2',label:'Switch'});assert.equal(assignment.status,201);
+  assert.equal((await a.post('/api/v1/ipam/records').set('Origin',origin).send({planId:plan.body.data.id,allocationIndex:0,address:'10.20.0.90',label:'Outside'})).status,400);
+  assert.equal((await a.post('/api/v1/ipam/records').set('Origin',origin).send({planId:plan.body.data.id,allocationIndex:0,address:'10.20.0.0',label:'Network address'})).status,400);
+  assert.equal((await a.post('/api/v1/ipam/records').set('Origin',origin).send({planId:plan.body.data.id,allocationIndex:0,address:'10.20.0.2',label:'Duplicate'})).status,409);
+  assert.equal((await b.post('/api/v1/ipam/records/1/release').set('Origin',origin)).status,404);
+  const reservation=await a.post('/api/v1/ipam/reservations').set('Origin',origin).send({planId:plan.body.data.id,allocationIndex:0,address:'10.20.0.3',label:'Printer',mac:'aa:bb:cc:dd:ee:ff'});assert.equal(reservation.status,201);
+  assert.equal((await a.post('/api/v1/ipam/records').set('Origin',origin).send({planId:plan.body.data.id,allocationIndex:0,address:'10.20.0.3',label:'Conflict'})).status,409);
+  assert.equal((await a.put(`/api/v1/plans/${plan.body.data.id}`).set('Origin',origin).send({name:'Office renamed',family:4,base:'10.20.0.0/24',requirements:[{name:'Staff',hosts:30}]})).status,200);
+  assert.equal((await a.put(`/api/v1/plans/${plan.body.data.id}`).set('Origin',origin).send({name:'Office moved',family:4,base:'10.21.0.0/24',requirements:[{name:'Staff',hosts:30}]})).status,409);
+  assert.equal((await b.get(`/api/v1/ipam?planId=${plan.body.data.id}`)).status,404);
+  const q=await a.get('/api/v1/practice/next?topic=host-count&difficulty=advanced');assert.equal(q.status,200);assert.equal(q.body.data.difficulty,'advanced');
+  const expected=db.prepare('SELECT answer FROM practice_questions WHERE id=?').get(q.body.data.id).answer;
+  const answer=await a.post('/api/v1/practice/answer').set('Origin',origin).send({questionId:q.body.data.id,answer:expected});assert.equal(answer.status,200);assert.equal(answer.body.data.correct,true);
+  const analytics=await a.get('/api/v1/analytics/me');assert.equal(analytics.body.data.totalAttempts,1);assert.equal(analytics.body.data.daily.length,1);
+  assert.equal((await b.get('/api/v1/analytics/me')).body.data.totalAttempts,0);
+});
